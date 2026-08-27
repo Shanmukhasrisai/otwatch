@@ -1,0 +1,9 @@
+version: "3"
+services:
+  otwatch:
+    build: .
+    container_name: otwatch
+    network_mode: host
+    privileged: true
+    volumes:
+      - ./data:/app/data
