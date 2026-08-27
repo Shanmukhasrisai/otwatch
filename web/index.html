@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>OTWatch Dashboard</title>
+  <style>
+    * { margin: 0; padding: 0; font-family: 'Segoe UI', Arial, sans-serif; }
+    body { background: #0d1117; color: #e6edf3; padding: 20px; }
+    h1 { color: #58a6ff; margin-bottom: 20px; }
+
+    .stats { display: flex; gap: 15px; margin-bottom: 25px; }
+    .card { flex: 1; background: #161b22; border-radius: 10px;
+            padding: 20px; text-align: center; border: 1px solid #30363d; }
+    .card h2 { font-size: 40px; }
+    .card p { color: #8b949e; }
+    .alert-card h2 { color: #f85149; }
+
+    .section-title { margin: 20px 0 10px; color: #58a6ff; font-size: 18px; }
+
+    .alerts-box { background: #161b22; border: 1px solid #f85149;
+                  border-radius: 10px; padding: 15px; min-height: 60px; }
+    .alert-item { background: #2d1215; border-left: 4px solid #f85149;
+                  padding: 10px; border-radius: 5px; margin-bottom: 8px; }
+    .no-alerts { color: #3fb950; padding: 10px; }
+
+    .grid { display: flex; gap: 15px; }
+    .panel { flex: 1; background: #161b22; border: 1px solid #30363d;
+             border-radius: 10px; padding: 15px; max-height: 400px; overflow-y: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th { text-align: left; color: #8b949e; padding: 8px;
+         border-bottom: 1px solid #30363d; }
+    td { padding: 8px; border-bottom: 1px solid #21262d; }
+
+    .dot { display: inline-block; width: 10px; height: 10px;
+           border-radius: 50%; background: #3fb950; margin-right: 5px; }
+    .write { color: #f85149; font-weight: bold; }
+    .read  { color: #58a6ff; }
+    .time  { color: #8b949e; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <h1>👁️ OTWatch Dashboard</h1>
+
+  <!-- STATS CARDS -->
+  <div class="stats">
+    <div class="card"><h2 id="assetCount">0</h2><p>ASSETS</p></div>
+    <div class="card"><h2 id="eventCount">0</h2><p>EVENTS</p></div>
+    <div class="card alert-card"><h2 id="alertCount">0</h2><p>⚠️ ALERTS</p></div>
+    <div class="card"><h2>Modbus</h2><p>PROTOCOL</p></div>
+  </div>
+
+  <!-- ALERTS -->
+  <h3 class="section-title">🚨 Security Alerts</h3>
+  <div class="alerts-box" id="alertsBox">
+    <div class="no-alerts">✅ No alerts — network is clean</div>
+  </div>
+
+  <!-- TWO PANELS -->
+  <div class="grid">
+    <div class="panel">
+      <h3 class="section-title">🖥️ Discovered Assets</h3>
+      <table id="assetsTable">
+        <tr><th>Status</th><th>IP Address</th><th>Role</th><th>Last Seen</th></tr>
+      </table>
+    </div>
+
+    <div class="panel">
+      <h3 class="section-title">📡 Live Event Feed</h3>
+      <table id="eventsTable">
+        <tr><th>Time</th><th>Function</th><th>Source → Dest</th></tr>
+      </table>
+    </div>
+  </div>
+
+<script>
+const API = "http://localhost:8000";
+
+async function refresh() {
+  try {
+    // Assets
+    const assets = await (await fetch(API + "/api/assets")).json();
+    document.getElementById("assetCount").innerText = assets.length;
+    const at = document.getElementById("assetsTable");
+    while (at.rows.length > 1) at.deleteRow(1);
+    assets.forEach(a => {
+      const row = at.insertRow();
+      row.innerHTML = `<td><span class="dot"></span></td>
+        <td>${a.ip}</td><td>${a.role} (${a.protocol})</td>
+        <td class="time">${a.last_seen}</td>`;
+    });
+
+    // Events
+    const events = await (await fetch(API + "/api/events?limit=20")).json();
+    document.getElementById("eventCount").innerText =
+      events.length ? events[0].id : 0;
+    const et = document.getElementById("eventsTable");
+    while (et.rows.length > 1) et.deleteRow(1);
+    events.forEach(e => {
+      const cls = e.func_code >= 5 && e.direction === "request" ? "write" : "read";
+      const row = et.insertRow();
+      row.innerHTML = `<td class="time">${e.timestamp.slice(11,19)}</td>
+        <td class="${cls}">${e.function}</td>
+        <td>${e.src} → ${e.dst}</td>`;
+    });
+
+    // Alerts
+    const alerts = await (await fetch(API + "/api/alerts")).json();
+    document.getElementById("alertCount").innerText = alerts.length;
+    const ab = document.getElementById("alertsBox");
+    ab.innerHTML = "";
+    if (alerts.length === 0) {
+      ab.innerHTML = '<div class="no-alerts">✅ No alerts — network is clean</div>';
+    } else {
+      alerts.reverse().forEach(al => {
+        const div = document.createElement("div");
+        div.className = "alert-item";
+        div.innerHTML = `🔴 <b>HIGH</b> | ${al.message}
+                         <span class="time">at ${al.timestamp.slice(11,19)}</span>`;
+        ab.appendChild(div);
+      });
+    }
+  } catch(err) {
+    console.log("API not reachable:", err);
+  }
+}
+
+refresh();
+setInterval(refresh, 3000);
+</script>
+</body>
+</html>
