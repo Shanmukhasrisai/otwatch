@@ -26,6 +26,36 @@ cd otwatch
 pip install -r requirements.txt
 ```
 
+Note: cloning this public repository does not require a username or password. Pushing changes requires authentication (use `gh auth login` or a Personal Access Token).
+
+### Troubleshooting — "git clone" asks for username/password
+
+If `git clone https://github.com/Shanmukhasrisai/otwatch.git` unexpectedly prompts for credentials, try these diagnostics (ordered):
+
+1. Verify repository visibility
+   - Open an incognito/private browser window and visit: https://github.com/Shanmukhasrisai/otwatch
+   - If you can see the code, the repo is public (cloning should not ask for auth). If you see a 404 page, the repo is private.
+
+2. Confirm you're using the HTTPS URL (not SSH)
+   - Wrong: `git@github.com:Shanmukhasrisai/otwatch.git` (this uses SSH and requires SSH keys)
+   - Right: `https://github.com/Shanmukhasrisai/otwatch.git`
+
+3. Run a verbose clone to see what's happening
+
+```bash
+GIT_TRACE=1 GIT_CURL_VERBOSE=1 git clone https://github.com/Shanmukhasrisai/otwatch.git
+```
+
+Paste the first ~30 lines of that output here and I will help interpret it.
+
+4. Other common causes
+   - A corporate proxy that intercepts HTTPS and requires credentials — try from a different network.
+   - A username embedded in the URL (like `https://username@github.com/...`) — remove it.
+   - You're running `git push` (push requires auth). Cloning a public repo does not.
+   - A submodule or dependency of the repo may be private — check for a `.gitmodules` file.
+
+If you'd like, I can open a PR that adds this troubleshooting section (already done) or expand it further with diagnostics steps for Windows credential managers.
+
 ### Run (3 terminals)
 
 ```bash
