@@ -1,4 +1,4 @@
-"""Asset inventory database (SQLite)."""
+ """Asset inventory database (SQLite)."""
 import sqlite3
 import time
 
@@ -24,6 +24,21 @@ class Inventory:
             timestamp TEXT, src TEXT, dst TEXT, unit_id INT,
             function TEXT, direction TEXT, payload_len INT
         );
+        CREATE TABLE IF NOT EXISTS alerts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            detection_id TEXT,
+            severity TEXT,
+            confidence REAL,
+            source TEXT,
+            destination TEXT,
+            protocol TEXT,
+            function TEXT,
+            evidence TEXT,
+            risk_score REAL,
+            mitre_id TEXT,
+            status TEXT DEFAULT 'new',
+            created_at TEXT
+        );
         """)
         self.conn.commit()
 
@@ -42,12 +57,33 @@ class Inventory:
 
     def log_event(self, event):
         cur = self.conn.cursor()
+        # Support both dict-like and dataclass/object events
+        try:
+            if isinstance(event, dict):
+                timestamp = event.get("timestamp")
+                src = event.get("src") or event.get("source")
+                dst = event.get("dst") or event.get("destination")
+                unit_id = event.get("unit_id")
+                function = event.get("function") or event.get("func_code")
+                direction = event.get("direction")
+                payload_len = event.get("payload_len") or 0
+            else:
+                timestamp = getattr(event, "timestamp", None)
+                src = getattr(event, "source", None)
+                dst = getattr(event, "destination", None)
+                unit_id = getattr(event, "unit_id", None)
+                function = getattr(event, "function", None)
+                direction = getattr(event, "direction", None)
+                payload_len = getattr(event, "payload_len", 0)
+        except Exception:
+            # Fallbacks
+            timestamp = src = dst = function = direction = None
+            unit_id = payload_len = None
+
         cur.execute(
             "INSERT INTO events (timestamp,src,dst,unit_id,function,direction,payload_len)"
             " VALUES (?,?,?,?,?,?,?)",
-            (event["timestamp"], event["src"], event["dst"],
-             event["unit_id"], event["function"],
-             event["direction"], event["payload_len"]))
+            (timestamp, src, dst, unit_id, str(function), direction, payload_len))
         self.conn.commit()
 
     def get_assets(self):
